@@ -25,7 +25,7 @@ from coincidence import coincidence_peak
 
 
 # ── 处理单对文件，返回该对的 results 列表 ───────────────────────────────────
-def process_pair(signal_paths, idler_paths) -> list:
+def process_pair(signal_paths, idler_paths, save_dir=None) -> list:
     """
     对单对 (signal, idler) 文件做流式处理。signal_paths/idler_paths 可以是
     单个文件路径字符串，也可以是分卷文件路径列表。
@@ -73,8 +73,11 @@ def process_pair(signal_paths, idler_paths) -> list:
             limit = os.cpu_count() * 2 if os.cpu_count() else 4
             
             for j, (sc, ic) in enumerate(zip(sig_gen, idl_gen)):
+                if j >= n_chunks_est:
+                    break
+                
                 # 提交任务
-                fut = executor.submit(coincidence_peak, sc, ic, cfg.BIN_WIDTH_PS, cfg.BIN_NUM)
+                fut = executor.submit(coincidence_peak, sc, ic, cfg.BIN_WIDTH_PS, cfg.BIN_NUM, save_dir, j + 1)
                 futures.append(fut)
                 
                 # 如果积压超过限制，等待最前面的一个完成
@@ -102,9 +105,13 @@ def main():
             if isinstance(names, str):
                 return os.path.join(cfg.DIR, names)
             return [os.path.join(cfg.DIR, n) for n in names]
+        # 为每对文件创建专属的直方图保存文件夹
+        pair_dir = os.path.join(cfg.DIR, f"pair{i}_histograms_raw_ps")
+        os.makedirs(pair_dir, exist_ok=True)
+
         signal_paths = _full_paths(pair['signal'])
         idler_paths  = _full_paths(pair['idler'])
-        results = process_pair(signal_paths, idler_paths)
+        results = process_pair(signal_paths, idler_paths, save_dir=pair_dir)
         all_results.append(results)
 
     # ── 对齐长度（两对文件片段数可能因文件时长略有差异）──────────────────

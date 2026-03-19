@@ -7,11 +7,15 @@ def _gaussian(x, baseline, center, sigma, amplitude):
     return amplitude * np.exp(-0.5 * ((x - center) / sigma) ** 2) + baseline
 
 
+from typing import Tuple
+
 def coincidence_peak(
         signal: np.ndarray,
         idler: np.ndarray,
         bin_width: int,
         bin_num: int,
+        save_dir: str = None,
+        index: int = 0,
 ) -> float:
     """对一个时间片段的时间戳做符合计数并拟合高斯峰。
 
@@ -48,7 +52,7 @@ def coincidence_peak(
     if diffs.size == 0:
         return 0.0
 
-    # 3. 直方图生成
+    # 3. 直方图生成 (拟通用宽度，用于寻找大范围高斯峰)
     hist, edges = np.histogram(diffs, bins=bin_num, range=(0, window))
 
     if hist.max() == 0:
@@ -77,5 +81,40 @@ def coincidence_peak(
     except RuntimeError:
         # 拟合失败时退化到直方图峰值位置
         center = float(x[peak_idx])
+
+    # ── 5. 生成并保存 1ps 分辨率的裁剪直方图 (65536个点) ────
+    if save_dir is not None:
+        import os
+        # 提取落入 [0, window) 内的有效 diffs 做 bincount
+        valid_diffs = diffs[(diffs >= 0) & (diffs < window)]
+        hist_1ps = np.bincount(valid_diffs, minlength=window)
+        
+        target_points = 65536
+        half_points = target_points // 2
+        
+        # 找到 1ps 精度下的最大峰值点
+        max_idx_1ps = int(np.argmax(hist_1ps))
+        
+        left = max_idx_1ps - half_points + 1
+        right = max_idx_1ps + half_points + 1
+        
+        total_len = len(hist_1ps)
+        if total_len < target_points:
+            left = 0
+            right = total_len
+        else:
+            if left < 0:
+                left = 0
+                right = target_points
+            elif right > total_len:
+                right = total_len
+                left = total_len - target_points
+                
+        select_hist = hist_1ps[left:right]
+        select_time = np.arange(left, right)
+        
+        out_path = os.path.join(save_dir, f'hist_raw_{index:05d}.csv')
+        data_to_save = np.column_stack((select_time, select_hist))
+        np.savetxt(out_path, data_to_save, delimiter=",", fmt="%d")
 
     return center - window / 2
