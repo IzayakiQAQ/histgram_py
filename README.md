@@ -1,46 +1,170 @@
-# Histogram Processing Pipeline (histgram_py)
+# histgram_py
 
-这是一个专为 TimeTagger 原始时间戳数据（.ttbin）设计的、高内存效率的符合计数处理流水线。
+Streaming coincidence-histogram processing tools for Swabian TimeTagger `.ttbin` data.
 
-## 技术栈 (Technology Stack)
+This repository is built around long-run, large-volume timestamp data where loading everything into memory is not practical. The core workflow reads `.ttbin` files in chunks, estimates the signal-idler time offset, slices the data into fixed time windows, extracts coincidence peaks, and writes per-slice results plus optional raw histogram CSVs.
 
-- **语言**: Python 3.x
-- **核心库**:
-    - **NumPy**: 用于高性能向量化数值计算。
-    - **SciPy**: 提供高性能 FFT 互相关与非线性最小二乘高斯拟合（`curve_fit`）。
-    - **TimeTagger (Swabian Instruments)**: 调用官方 Python API 进行二进制文件流式读取。
-    - **tqdm**: 提供可视化的处理进度反馈。
+## What Is In This Repo
 
-## 核心特性
+- `pipeline.py`
+  Main two-pair processing pipeline.
+- `ttbin_reader.py`
+  Streaming `.ttbin` reader with automatic multi-volume discovery.
+- `correlation.py`
+  FFT-based coarse time-offset estimation.
+- `coincidence.py`
+  Coincidence histogram generation, local Gaussian fitting, and raw histogram export.
+- `reprocess_hist_leftpeak.py`
+  Reprocesses saved histogram CSVs by selecting the leftmost significant peak and optionally fitting it.
+- `coincidence_dualpeak.py`
+  Utility for datasets with a clear two-peak structure.
+- `pipeline_variants/dualpeak_single_idler/`
+  Variant pipeline for one idler shared by two signal channels.
+- `tests_misaligned/test_time_offset_misaligned.py`
+  Synthetic regression test for offset estimation under partial overlap and noise.
 
-1. **内存友好**: 通过分片（Chunking）流式读取，即使处理 24h+ 的 TB 级原始数据，内存占用也能稳定在数百 MB 以内。
-2. **自动分卷识别**: 支持 Swabian 的物理分卷（.1.ttbin, .2.ttbin...），只需填写主文件名即可自动关联。
-3. **并行加速**: 采用多进程并行处理符合峰拟合计算，大幅缩短长时间序列的处理耗时。
-4. **即时写出**: 每段结果实时写入 CSV，防止程序意外中断导致数据丢失。
+## Main Features
 
-## 操作方式 (Getting Started)
+- Streaming processing for large `.ttbin` datasets
+- Automatic discovery of split volumes such as `.ttbin.1`, `.ttbin.2`, ...
+- FFT-based coarse offset estimation
+- Per-slice coincidence peak extraction with local Gaussian fitting
+- Raw histogram export at configurable saved resolution such as `1 ps` or `100 ps`
+- Histogram reprocessing tools for special cases like double-peak or triple-peak data
 
-### 1. 环境准备
-确保已安装 Swabian Instruments 的 TimeTagger 软件及其对应的 Python 库，并安装以下依赖：
+## Requirements
+
+- Python 3.x
+- Swabian TimeTagger Python package
+- `numpy`
+- `scipy`
+- `tqdm`
+
+Install the Python dependencies with:
+
 ```bash
 pip install numpy scipy tqdm
 ```
 
-### 2. 配置参数
-在运行前，请修改 `config.py`：
-- **`DIR`**: 设置您的数据存放文件夹。
-- **`FILE_PAIRS`**: 设置需要比对的文件对。只需写主文件名（如 `test.ttbin`），系统会自动寻找物理分卷。
-- **`BIN_WIDTH_PS` / `BIN_NUM`**: 调整符合计数的直方图精度。
+## Typical Workflow
 
-### 3. 启动分析
-直接运行主程序即可：
-```bash
-python pipeline.py
+### 1. Configure the main run
+
+Edit `config.py` for your local dataset and output paths.
+
+Important fields:
+
+- `FILE_PAIRS`
+  Input signal/idler pairs. Each path can be a single `.ttbin` or a list of volumes.
+- `OUTPUT_DIR`
+  Root directory for generated histograms and CSV outputs.
+- `SAVE_HIST_BIN_WIDTHS_PS`
+  Saved raw histogram resolution for each pair.
+- `CORRELATION_WINDOW_PS`
+  Head-window duration used for coarse offset estimation.
+- `CORRELATION_FRAMES`
+  Histogram bins used during coarse correlation.
+- `SPLIT_STEP_PS`
+  Per-slice duration.
+- `BIN_WIDTH_PS`, `BIN_NUM`
+  Coarse coincidence histogram settings used for peak finding.
+
+If a pair already has a trusted offset, you can provide:
+
+```python
+'time_diff_ps': <known_offset_in_ps>
 ```
 
-## 文件结构
-- `pipeline.py`: 核心调度逻辑。
-- `ttbin_reader.py`: 负责高效的 .ttbin 流式读取与自动分卷。
-- `correlation.py`: 负责寻找 signal 与 idler 之间的全局时间对齐。
-- `coincidence.py`: 向量化符合计数与高斯拟合。
-- `config.py`: 所有可调参数的集中地。
+inside the corresponding `FILE_PAIRS` entry to bypass automatic correlation for that pair.
+
+### 2. Run the main pipeline
+
+```bash
+python .\pipeline.py
+```
+
+Outputs typically include:
+
+- `pair0_histograms_raw_<N>ps/`
+- `pair1_histograms_raw_<N>ps/`
+- `hcf.csv`
+- `data_py.csv`
+
+where `<N>` is the saved histogram resolution from `SAVE_HIST_BIN_WIDTHS_PS`.
+
+### 3. Reprocess saved histograms when needed
+
+For special datasets where the raw histogram contains multiple peaks and you want a controlled post-processing rule, use:
+
+```bash
+python .\reprocess_hist_leftpeak.py --root-dir <run_output_dir>
+```
+
+This script can:
+
+- select the leftmost significant peak
+- fit that peak locally
+- write a cleaned output CSV
+- write a debug CSV with raw peak positions and fit status
+
+### 4. Use the dual-peak variant if your dataset needs it
+
+The variant pipeline lives under:
+
+- `pipeline_variants/dualpeak_single_idler/`
+
+Set the paths in:
+
+- `pipeline_variants/dualpeak_single_idler/config_dualpeak_single_idler.py`
+
+Then run:
+
+```bash
+python .\pipeline_variants\dualpeak_single_idler\pipeline_dualpeak_single_idler.py
+```
+
+## Raw Histogram Saving Logic
+
+The current `coincidence.py` behavior is:
+
+1. Build the coarse coincidence histogram using `BIN_WIDTH_PS`
+2. Find the strongest coarse bin
+3. Fit locally around that coarse peak
+4. Build the full `1 ps` histogram internally
+5. Re-center the saved window around the fitted peak neighborhood
+6. Save either:
+   - full `1 ps` bins, or
+   - rebinned output such as `100 ps`
+
+This is meant to avoid saving windows centered on isolated noise spikes.
+
+## Tests
+
+Run the synthetic correlation test with:
+
+```bash
+python .\tests_misaligned\test_time_offset_misaligned.py
+```
+
+You can also do a quick syntax check on the main scripts with:
+
+```bash
+python -m py_compile coincidence.py pipeline.py correlation.py
+```
+
+## Notes
+
+- `config.py` is intentionally local and experiment-specific. Before sharing your own branch, review the embedded file paths.
+- CSV outputs are ignored by `.gitignore`.
+- Temporary debug folders such as `_tmp_pair0_save_check/` are also ignored.
+
+## Repository Status
+
+This repository now contains:
+
+- the main two-pair processing pipeline
+- a histogram reprocessing tool for left-peak extraction
+- a dual-peak helper and a dual-peak pipeline variant
+- a regression test for misaligned coarse-correlation inputs
+
+If you are updating the code for a new experiment, the usual starting points are `config.py`, `pipeline.py`, and `coincidence.py`.
