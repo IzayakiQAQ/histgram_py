@@ -14,6 +14,9 @@ venv.bak/
 *.ttbin.*
 *.csv
 *.log
+singlepeak_*.json
+SINGLEPEAK_BATCH_WORKFLOW.md
+wait_and_run_*.ps1
 test_ttbin_discovery/
 _tmp_pair0_save_check/
 pair0_check_*/
