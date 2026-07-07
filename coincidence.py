@@ -16,6 +16,8 @@ def coincidence_peak(
         index: int = 0,
         fit_half_window_bins: int = 80,
         save_hist_bin_width_ps: int = 1,
+        save_hist_center_ps: int = None,
+        save_hist_points: int = 65536,
 ) -> float:
     """Estimate the coincidence peak center for one time slice."""
     window = int(bin_width) * int(bin_num)
@@ -105,7 +107,12 @@ def coincidence_peak(
             time_to_save = np.arange(hist_to_save.size, dtype=np.int64) * save_hist_bin_width_ps
             center_idx = center_abs_1ps // save_hist_bin_width_ps
 
-        target_points = 65536
+        if save_hist_center_ps is not None:
+            fixed_center = int(round(save_hist_center_ps))
+            fixed_center = max(0, min(fixed_center, window - 1))
+            center_idx = fixed_center // save_hist_bin_width_ps
+
+        target_points = max(int(save_hist_points), 1)
         half_points = target_points // 2
 
         left = center_idx - half_points + 1

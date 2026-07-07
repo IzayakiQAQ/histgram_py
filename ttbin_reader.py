@@ -16,6 +16,26 @@ import numpy as np
 import TimeTagger
 
 
+def _find_swabian_ttbin_volumes(path: str) -> List[str]:
+    """Return official FileWriter split files: data.1.ttbin, data.2.ttbin."""
+    dirname = os.path.dirname(path) or "."
+    filename = os.path.basename(path)
+    match = re.match(r"^(.*?)(?:\.(\d+))?\.ttbin$", filename)
+    if not match or not os.path.isdir(dirname):
+        return []
+
+    stem = match.group(1)
+    found = []
+    index = 1
+    while True:
+        vol_path = os.path.join(dirname, f"{stem}.{index}.ttbin")
+        if not os.path.isfile(vol_path):
+            break
+        found.append(vol_path)
+        index += 1
+    return found
+
+
 class StreamingTTBinReader:
     """逐块读取一个或多个分卷 .ttbin 文件，按时间窗口生成时间戳片段。
 
@@ -55,6 +75,9 @@ class StreamingTTBinReader:
         """
         if not path:
             return []
+        swabian_volumes = _find_swabian_ttbin_volumes(path)
+        if swabian_volumes:
+            return swabian_volumes
             
         # 1. 提取基础路径（去掉 .N 后缀）
         # 匹配 xxx.ttbin 或 xxx.ttbin.N

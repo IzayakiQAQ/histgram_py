@@ -1,0 +1,38 @@
+{
+  "defaults": {
+    "output_root": "fixedaxis_check_50km_5nm_100hz_31_42_1ps",
+    "split_step_s": 10,
+    "total_time_s": 60,
+    "correlation_window_s": 4,
+    "correlation_frames": 40000000,
+    "bin_width_ps": 20,
+    "bin_num": 10000,
+    "read_chunk_size": 2000000,
+    "save_hist_bin_width_ps": 1,
+    "save_hist_center_ps": 100000,
+    "save_hist_points": 65536,
+    "fit_half_window_bins": 250,
+    "workers": 4,
+    "max_slices": 6
+  },
+  "jobs": [
+    {
+      "name": "20260620_50km_5nm_100hz_fixedaxis_check_1ps",
+      "root": "E:/lzy/\u6d4b\u8bd5\u7ed3\u679c/2026.6.20 50km 5nm 100hz",
+      "pairs": [
+        {
+          "label": "ch3_ch1",
+          "signal": "3-2025.11.2_2026-06-20_142108.ttbin",
+          "idler": "1-2025.11.2_2026-06-20_142106.ttbin",
+          "time_diff_ps": -247332746
+        },
+        {
+          "label": "ch4_ch2",
+          "signal": "4-2025.11.2_2026-06-20_142107.ttbin",
+          "idler": "2-2025.11.2_2026-06-20_142107.ttbin",
+          "time_diff_ps": -247328644
+        }
+      ]
+    }
+  ]
+}

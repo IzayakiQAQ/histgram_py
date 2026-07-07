@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "output_root": "singlepeak_batch_out",
+    "split_step_s": 10,
+    "total_time_s": 86400,
+    "correlation_window_s": 4,
+    "correlation_frames": 40000000,
+    "bin_width_ps": 20,
+    "bin_num": 10000,
+    "read_chunk_size": 2000000,
+    "save_hist_bin_width_ps": 1,
+    "fit_half_window_bins": 80,
+    "workers": 8
+  },
+  "jobs": [
+    {
+      "name": "group1",
+      "root": "E:/path/to/group1",
+      "pairs": [
+        {
+          "label": "pair0",
+          "signal": "signal.ttbin",
+          "idler": "idler.ttbin"
+        }
+      ]
+    },
+    {
+      "name": "group2",
+      "root": "E:/path/to/group2",
+      "pairs": [
+        {
+          "label": "pair0",
+          "signal": "signal.ttbin",
+          "idler": "idler.ttbin",
+          "time_diff_ps": 58500000
+        }
+      ]
+    }
+  ]
+}

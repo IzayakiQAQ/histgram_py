@@ -1,0 +1,33 @@
+{
+  "defaults": {
+    "output_root": "E:/lzy/测试结果/不同带宽/单峰全程_5nm_12_34",
+    "split_step_s": 10,
+    "total_time_s": 86400,
+    "correlation_window_s": 4,
+    "correlation_frames": 40000000,
+    "bin_width_ps": 20,
+    "bin_num": 10000,
+    "read_chunk_size": 2000000,
+    "save_hist_bin_width_ps": 1,
+    "fit_half_window_bins": 80,
+    "workers": 8
+  },
+  "jobs": [
+    {
+      "name": "5nm_12_34",
+      "root": "E:/lzy/测试结果/不同带宽/5nm",
+      "pairs": [
+        {
+          "label": "ch1_ch2",
+          "signal": "1-24h-0.8nm-5kHz_2025-09-19_103555.ttbin",
+          "idler": "2-24h-0.8nm-5kHz_2025-09-19_103555.ttbin"
+        },
+        {
+          "label": "ch3_ch4",
+          "signal": "3-24h-0.8nm-5kHz_2025-09-19_103556.ttbin",
+          "idler": "4-24h-0.8nm-5kHz_2025-09-19_103556.ttbin"
+        }
+      ]
+    }
+  ]
+}
